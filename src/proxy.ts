@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const PROTECTED_PATHS = ["/dashboard", "/match", "/builders", "/messages", "/meetings", "/settings"];
 const AUTH_PATHS = ["/login", "/signup"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -31,7 +31,6 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
 
-  // 보호된 경로 — 비로그인 시 로그인 페이지로
   const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p));
   if (isProtected && !user) {
     const url = request.nextUrl.clone();
@@ -40,7 +39,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 로그인 상태에서 auth 페이지 접근 시 대시보드로
   const isAuthPath = AUTH_PATHS.some((p) => pathname.startsWith(p));
   if (isAuthPath && user) {
     const url = request.nextUrl.clone();
