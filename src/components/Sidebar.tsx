@@ -1,18 +1,15 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
-  Sparkles,
-  Users,
-  MessageSquare,
-  Calendar,
-  Settings,
-  Brain,
-  Bell,
+  LayoutDashboard, Sparkles, Users, MessageSquare,
+  Calendar, Settings, Brain, Bell, LogOut,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "대시보드" },
@@ -25,6 +22,29 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  };
+
+  const displayName = user?.user_metadata?.name ?? user?.email?.split("@")[0] ?? "사용자";
+  const displayRole = user?.user_metadata?.role === "builder" ? "커뮤니티 빌더" : "솔로프리너";
+  const avatarChar = displayName[0] ?? "U";
 
   return (
     <aside className="fixed left-0 top-0 h-full w-60 bg-white border-r border-border flex flex-col z-40">
@@ -54,12 +74,7 @@ export default function Sidebar() {
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
             >
-              <Icon
-                className={cn(
-                  "w-4 h-4 shrink-0",
-                  active ? "text-[#6C3BFF]" : "text-muted-foreground group-hover:text-foreground"
-                )}
-              />
+              <Icon className={cn("w-4 h-4 shrink-0", active ? "text-[#6C3BFF]" : "text-muted-foreground group-hover:text-foreground")} />
               <span className="flex-1">{label}</span>
               {badge && (
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded gradient-brand text-white">
@@ -77,17 +92,24 @@ export default function Sidebar() {
       </nav>
 
       {/* User profile */}
-      <div className="px-3 pb-4 border-t border-border pt-4">
-        <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary cursor-pointer">
+      <div className="px-3 pb-4 border-t border-border pt-4 space-y-1">
+        <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
           <div className="w-8 h-8 rounded-full gradient-brand flex items-center justify-center text-white text-xs font-bold shrink-0">
-            김
+            {avatarChar}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">김솔로</p>
-            <p className="text-xs text-muted-foreground truncate">솔로프리너</p>
+            <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+            <p className="text-xs text-muted-foreground truncate">{displayRole}</p>
           </div>
-          <Bell className="w-4 h-4 text-muted-foreground" />
+          <Bell className="w-4 h-4 text-muted-foreground shrink-0" />
         </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          로그아웃
+        </button>
       </div>
     </aside>
   );
